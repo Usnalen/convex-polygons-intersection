@@ -8,6 +8,7 @@ namespace ConvexPolygonss
 {
     public partial class Form1 : Form
     {
+        // Списки вершин двух полигонов и их пересечения
         List<PointF> polygon1 = new List<PointF>();
         List<PointF> polygon2 = new List<PointF>();
         List<PointF> intersection = new List<PointF>();
@@ -28,30 +29,38 @@ namespace ConvexPolygonss
             Width = 900;
             Height = 650;
 
+            // Кнопка завершения полигона
             btnFinish.Text = "Завершить полигон";
             btnFinish.SetBounds(10, 10, 180, 35);
             btnFinish.Click += FinishPolygon;
 
+            // Кнопка поиска пересечения
             btnIntersect.Text = "Найти пересечение";
             btnIntersect.SetBounds(200, 10, 180, 35);
             btnIntersect.Click += FindIntersection;
 
+            // Кнопка очистки
             btnClear.Text = "Очистить";
             btnClear.SetBounds(390, 10, 120, 35);
             btnClear.Click += ClearAll;
 
+            // Настройка области рисования
             canvas.SetBounds(10, 60, 860, 530);
             canvas.BackColor = Color.White;
             canvas.BorderStyle = BorderStyle.FixedSingle;
+
+            // Обработка нажатий мыши и перерисовки
             canvas.MouseClick += CanvasClick;
             canvas.Paint += CanvasPaint;
 
+            // Добавление элементов на форму
             Controls.Add(btnFinish);
             Controls.Add(btnIntersect);
             Controls.Add(btnClear);
             Controls.Add(canvas);
         }
 
+        //обработка нажатия мыши
         private void CanvasClick(object sender, MouseEventArgs e)
         {
             if (finished) return;
@@ -61,12 +70,17 @@ namespace ConvexPolygonss
             else
                 polygon2.Add(e.Location);
 
+            // Очищаем предыдущий результат пересечения
             intersection.Clear();
+
+            // Запрашиваем перерисовку поля
             canvas.Invalidate();
         }
 
+        //завершение построения многоугольников
         private void FinishPolygon(object sender, EventArgs e)
         {
+            // Проверяем, рисуем ли первый полигон
             if (currentPolygon == 1)
             {
                 if (polygon1.Count < 3)
@@ -74,6 +88,8 @@ namespace ConvexPolygonss
                     MessageBox.Show("Нужно минимум 3 точки");
                     return;
                 }
+
+                // Переключаемся на второй полигон
                 currentPolygon = 2;
                 MessageBox.Show("Теперь рисуйте второй полигон");
             }
@@ -84,17 +100,22 @@ namespace ConvexPolygonss
                     MessageBox.Show("Нужно минимум 3 точки");
                     return;
                 }
+
+                // Завершаем построение обоих полигонов
                 finished = true;
                 MessageBox.Show("Оба полигона готовы");
             }
 
+            // Перерисовываем поле
             canvas.Invalidate();
         }
 
+        //отрисовка многоугольников и пересечения
         private void CanvasPaint(object sender, PaintEventArgs e)
         {
             Graphics g = e.Graphics;
 
+            // Рисуем первый и второй полигоны
             DrawPolygon(g, polygon1, Color.Blue);
             DrawPolygon(g, polygon2, Color.Red);
 
@@ -107,13 +128,16 @@ namespace ConvexPolygonss
             }
         }
 
+        // Метод рисует многоугольник
         private void DrawPolygon(Graphics g, List<PointF> points, Color color)
         {
             using (Pen pen = new Pen(color, 2))
             {
+                // Рисуем линии между соседними вершинами
                 for (int i = 0; i < points.Count - 1; i++)
                     g.DrawLine(pen, points[i], points[i + 1]);
 
+                // Если вершин достаточно, замыкаем многоугольник
                 if (points.Count >= 3)
                     g.DrawLine(pen, points[points.Count - 1], points[0]);
             }
@@ -122,6 +146,7 @@ namespace ConvexPolygonss
                 g.FillEllipse(Brushes.Black, p.X - 3, p.Y - 3, 6, 6);
         }
 
+        // Проверяет готовность полигонов, вычисляет и отображает пересечение
         private void FindIntersection(object sender, EventArgs e)
         {
             if (!finished)
@@ -131,28 +156,36 @@ namespace ConvexPolygonss
             }
 
             intersection = ClipPolygon(polygon1, polygon2);
+
             canvas.Invalidate();
 
+            // Если нет области пересечения, выводим сообщение
             if (intersection.Count < 3)
                 MessageBox.Show("Общей области нет");
         }
 
+        // Находит пересечение двух выпуклых многоугольников (Сазерленда — Ходжмана)
         private List<PointF> ClipPolygon(List<PointF> subject, List<PointF> clip)
         {
+            // Копируем первый полигон, который будем обрезать
             List<PointF> result = new List<PointF>(subject);
 
+            // Определяем направление обхода вершин второго полигона
             float area = 0;
             for (int i = 0; i < clip.Count; i++)
             {
                 PointF a = clip[i];
                 PointF b = clip[(i + 1) % clip.Count];
+
                 area += a.X * b.Y - b.X * a.Y;
             }
 
             bool counterClockwise = area > 0;
 
+            // Последовательно обрезаем по каждому ребру второго полигона
             for (int i = 0; i < clip.Count; i++)
             {
+                // Берём начало и конец текущего ребра
                 PointF a = clip[i];
                 PointF b = clip[(i + 1) % clip.Count];
 
@@ -162,44 +195,60 @@ namespace ConvexPolygonss
                 if (input.Count == 0)
                     break;
 
+                // Начинаем с последней вершины
                 PointF previous = input[input.Count - 1];
 
+                // Перебираем все вершины текущей фигуры
                 foreach (PointF current in input)
                 {
+                    // Проверяем положение текущей и предыдущей вершин
                     bool currentInside = Inside(current, a, b, counterClockwise);
                     bool previousInside = Inside(previous, a, b, counterClockwise);
 
+                    // Если текущая вершина внутри
                     if (currentInside)
                     {
+                        // Если предыдущая снаружи, находим точку входа
                         if (!previousInside)
                             result.Add(GetIntersection(previous, current, a, b));
 
+                        // Добавляем текущую вершину
                         result.Add(current);
                     }
+                    // Если текущая снаружи, а предыдущая внутри
                     else if (previousInside)
                     {
+                        // Добавляем точку выхода
                         result.Add(GetIntersection(previous, current, a, b));
                     }
 
+                    // Текущая вершина становится предыдущей
                     previous = current;
                 }
             }
 
+            // Возвращаем вершины полученного пересечения
             return result;
         }
 
+        // Проверяет, находится ли точка внутри границы отсечения
         private bool Inside(PointF p, PointF a, PointF b, bool ccw)
         {
+            // Вычисляем векторное произведение
             float cross = (b.X - a.X) * (p.Y - a.Y)
                         - (b.Y - a.Y) * (p.X - a.X);
 
             return ccw ? cross >= -0.0001f : cross <= 0.0001f;
         }
 
+        // Вычисляет точку пересечения ребра полигона с границей отсечения
         private PointF GetIntersection(PointF p1, PointF p2, PointF a, PointF b)
         {
+            // Вычисляем направляющий вектор первого ребра
             float dx1 = p2.X - p1.X;
             float dy1 = p2.Y - p1.Y;
+
+            // Вычисляем направляющий вектор границы отсечения
             float dx2 = b.X - a.X;
             float dy2 = b.Y - a.Y;
 
